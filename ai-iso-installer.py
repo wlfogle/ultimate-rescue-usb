@@ -69,6 +69,48 @@ class OSDatabase:
                 },
                 "keywords": ["windows", "microsoft", "gaming", "office", "business"]
             },
+            "garuda-dragonized": {
+                "name": "Garuda Linux Dr460nized",
+                "versions": {
+                    "latest": "https://iso.garudalinux.org/iso/latest/garuda/dr460nized/"
+                },
+                "keywords": ["garuda", "garuda linux", "dr460nized", "gaming linux", "arch based", "beautiful linux", "customized linux", "kde plasma", "dragonized"]
+            },
+            "garuda-gaming": {
+                "name": "Garuda Linux Gaming Edition",
+                "versions": {
+                    "latest": "https://iso.garudalinux.org/iso/latest/garuda/gaming/"
+                },
+                "keywords": ["garuda gaming", "gaming edition", "garuda linux gaming", "gaming linux", "performance gaming", "linux gaming", "gaming optimization"]
+            },
+            "garuda-gnome": {
+                "name": "Garuda Linux GNOME",
+                "versions": {
+                    "latest": "https://iso.garudalinux.org/iso/latest/garuda/gnome/"
+                },
+                "keywords": ["garuda gnome", "gnome desktop", "garuda linux gnome", "clean desktop", "modern linux"]
+            },
+            "garuda-xfce": {
+                "name": "Garuda Linux Xfce",
+                "versions": {
+                    "latest": "https://iso.garudalinux.org/iso/latest/garuda/xfce/"
+                },
+                "keywords": ["garuda xfce", "lightweight garuda", "xfce desktop", "efficient linux", "low resource"]
+            },
+            "garuda-cinnamon": {
+                "name": "Garuda Linux Cinnamon",
+                "versions": {
+                    "latest": "https://iso.garudalinux.org/iso/latest/garuda/cinnamon/"
+                },
+                "keywords": ["garuda cinnamon", "cinnamon desktop", "familiar interface", "traditional desktop"]
+            },
+            "garuda-sway": {
+                "name": "Garuda Linux Sway",
+                "versions": {
+                    "latest": "https://iso.garudalinux.org/iso/latest/garuda/sway/"
+                },
+                "keywords": ["garuda sway", "wayland compositor", "tiling window manager", "minimal desktop", "keyboard driven"]
+            },
             "ai-powerhouse": {
                 "name": "AI Powerhouse Garuda",
                 "versions": {
@@ -96,7 +138,29 @@ class OSDatabase:
                     score += 5
             
             # Check use case matches
-            if any(word in query for word in ["gaming", "work", "office"]) and "windows" in os_id:
+            # Gaming prioritization - Garuda Gaming gets highest score
+            if any(word in query for word in ["gaming", "game", "games"]):
+                if "garuda-gaming" in os_id:
+                    score += 15  # Highest priority for Garuda Gaming
+                elif "garuda" in os_id:
+                    score += 12  # High priority for other Garuda editions
+                elif "windows" in os_id:
+                    score += 3   # Lower priority for Windows
+            
+            # Linux desktop prioritization
+            if any(word in query for word in ["linux", "arch", "rolling"]):
+                if "garuda" in os_id:
+                    score += 10
+                elif "arch" in os_id:
+                    score += 8
+            
+            # Desktop environment specific
+            if any(word in query for word in ["kde", "plasma", "dr460nized", "dragonized"]):
+                if "garuda-dragonized" in os_id or "garuda-gaming" in os_id:
+                    score += 12
+            
+            # Other use cases
+            if any(word in query for word in ["work", "office"]) and "windows" in os_id:
                 score += 3
             if any(word in query for word in ["server", "stable"]) and "debian" in os_id:
                 score += 3
@@ -119,9 +183,11 @@ class DiskManager:
     
     @staticmethod
     def get_available_disks():
-        """Get list of available disks and partitions"""
+        """Get list of available disks with enhanced information"""
         try:
-            result = subprocess.run(['lsblk', '-J'], capture_output=True, text=True)
+            # Get basic disk info
+            result = subprocess.run(['lsblk', '-J', '-o', 'NAME,SIZE,TYPE,MOUNTPOINT,TRAN,MODEL'], 
+                                   capture_output=True, text=True)
             data = json.loads(result.stdout)
             
             disks = []
@@ -131,11 +197,13 @@ class DiskManager:
                     'size': device['size'],
                     'type': device['type'],
                     'mountpoint': device.get('mountpoint'),
-                    'path': f"/dev/{device['name']}"
+                    'path': f"/dev/{device['name']}",
+                    'transport': device.get('tran', ''),
+                    'model': device.get('model', '')
                 }
                 disks.append(disk_info)
                 
-                # Add partitions
+                # Add partitions (still collected but filtered out later)
                 if 'children' in device:
                     for child in device['children']:
                         part_info = {
@@ -143,7 +211,9 @@ class DiskManager:
                             'size': child['size'],
                             'type': child['type'],
                             'mountpoint': child.get('mountpoint'),
-                            'path': f"/dev/{child['name']}"
+                            'path': f"/dev/{child['name']}",
+                            'transport': device.get('tran', ''),
+                            'model': device.get('model', '')
                         }
                         disks.append(part_info)
             
@@ -319,13 +389,26 @@ class AIISOInstaller:
         
         # Example queries
         examples = ttk.Label(search_frame, 
-                           text="Examples: 'Ubuntu for beginners', 'Windows for gaming', 'Kali for pentesting', 'AI Powerhouse development'",
+                           text="Examples: 'Ubuntu for beginners', 'Garuda gaming', 'Kali for pentesting', 'AI Powerhouse development'",
                            font=("Arial", 9), foreground="gray")
         examples.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(5, 0))
         
+        # Local ISO file selection
+        local_frame = ttk.LabelFrame(main_frame, text="Or select local ISO file", padding="10")
+        local_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        self.local_iso_var = tk.StringVar()
+        local_iso_entry = ttk.Entry(local_frame, textvariable=self.local_iso_var, font=("Arial", 10))
+        local_iso_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
+        
+        browse_btn = ttk.Button(local_frame, text="Browse ISO...", command=self.browse_local_iso)
+        browse_btn.grid(row=0, column=1)
+        
+        local_frame.columnconfigure(0, weight=1)
+        
         # Results frame
         results_frame = ttk.LabelFrame(main_frame, text="Search Results", padding="10")
-        results_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        results_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         
         # Results treeview
         columns = ('OS', 'Version', 'Match')
@@ -349,9 +432,23 @@ class AIISOInstaller:
         results_frame.columnconfigure(0, weight=1)
         results_frame.rowconfigure(0, weight=1)
         
+        # Installation type frame
+        install_type_frame = ttk.LabelFrame(main_frame, text="Installation Type", padding="10")
+        install_type_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        self.install_type_var = tk.StringVar(value="live")
+        
+        live_radio = ttk.Radiobutton(install_type_frame, text="Create Live USB (boot from ISO)", 
+                                    variable=self.install_type_var, value="live")
+        live_radio.grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        
+        install_radio = ttk.Radiobutton(install_type_frame, text="Install OS to USB (persistent installation)", 
+                                       variable=self.install_type_var, value="install")
+        install_radio.grid(row=1, column=0, sticky=tk.W)
+        
         # Download frame
-        download_frame = ttk.LabelFrame(main_frame, text="Download & Install", padding="10")
-        download_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        download_frame = ttk.LabelFrame(main_frame, text="Target Device", padding="10")
+        download_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
         
         # Target disk selection
         ttk.Label(download_frame, text="Target Device:").grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
@@ -377,9 +474,9 @@ class AIISOInstaller:
         
         # Action buttons
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E))
+        button_frame.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E))
         
-        self.download_btn = ttk.Button(button_frame, text="Download & Install", command=self.start_installation)
+        self.download_btn = ttk.Button(button_frame, text="Create Bootable USB", command=self.start_installation)
         self.download_btn.grid(row=0, column=0, padx=(0, 10))
         self.download_btn.configure(state='disabled')
         
@@ -391,7 +488,7 @@ class AIISOInstaller:
         test_btn.grid(row=0, column=2)
         
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(1, weight=1)
+        main_frame.rowconfigure(2, weight=1)
         
         # Initialize
         self.refresh_disks()
@@ -425,14 +522,77 @@ class AIISOInstaller:
         self.status_var.set(f"Found {len(matches)} matches")
         self.download_btn.configure(state='normal')
         
+    def browse_local_iso(self):
+        """Browse for local ISO file"""
+        filetypes = [
+            ('ISO files', '*.iso'),
+            ('All files', '*.*')
+        ]
+        
+        filename = filedialog.askopenfilename(
+            title="Select ISO file",
+            filetypes=filetypes,
+            initialdir=str(Path.home() / "Downloads")
+        )
+        
+        if filename:
+            self.local_iso_var.set(filename)
+            # Clear search results when local ISO is selected
+            for item in self.results_tree.get_children():
+                self.results_tree.delete(item)
+            
+            # Add local ISO to results
+            iso_name = Path(filename).stem
+            self.results_tree.insert('', 'end', values=(f"Local: {iso_name}", "Selected", "100%"))
+            
+            self.status_var.set(f"Selected local ISO: {Path(filename).name}")
+            self.download_btn.configure(state='normal')
+    
     def refresh_disks(self):
-        """Refresh available disk list"""
+        """Refresh available disk list with enhanced information"""
         disks = self.disk_manager.get_available_disks()
         disk_options = []
         
         for disk in disks:
-            if disk['type'] in ['disk', 'part'] and not disk['mountpoint']:
-                disk_options.append(f"{disk['path']} ({disk['size']})")
+            # Only show whole disks (not partitions) for bootable USB creation
+            if disk['type'] == 'disk':
+                # Build descriptive label
+                label_parts = [disk['path'], f"({disk['size']})"]
+                
+                # Add transport type if available
+                if disk.get('transport'):
+                    if disk['transport'] == 'usb':
+                        label_parts.append('[USB]')
+                    elif disk['transport'] == 'sata':
+                        label_parts.append('[SATA]')
+                    elif disk['transport'] == 'nvme':
+                        label_parts.append('[NVMe]')
+                    else:
+                        label_parts.append(f"[{disk['transport'].upper()}]")
+                
+                # Add model if available
+                if disk.get('model') and disk['model'].strip():
+                    label_parts.append(f"- {disk['model'].strip()}")
+                
+                # Mark if disk has mounted partitions (warning)
+                has_mounted = False
+                if 'children' in disks or any(d['name'].startswith(disk['name']) and d.get('mountpoint') 
+                                              for d in disks if d['type'] == 'part'):
+                    # Check if any partition of this disk is mounted
+                    for other_disk in disks:
+                        if (other_disk['name'].startswith(disk['name']) and 
+                            other_disk['type'] == 'part' and 
+                            other_disk.get('mountpoint')):
+                            has_mounted = True
+                            break
+                
+                if has_mounted:
+                    label_parts.append('⚠️ HAS MOUNTED PARTITIONS')
+                
+                disk_options.append(' '.join(label_parts))
+        
+        # Sort USB devices first for convenience
+        disk_options.sort(key=lambda x: (0 if '[USB]' in x else 1, x))
         
         self.disk_combo['values'] = disk_options
         if disk_options:
@@ -440,9 +600,38 @@ class AIISOInstaller:
     
     def start_installation(self):
         """Start the download and installation process"""
+        # Check for local ISO first
+        local_iso_path = self.local_iso_var.get().strip()
+        if local_iso_path:
+            # Local ISO installation
+            target_disk = self.disk_var.get()
+            if not target_disk:
+                messagebox.showwarning("Warning", "Please select a target device")
+                return
+            
+            # Validate ISO file exists
+            if not Path(local_iso_path).exists():
+                messagebox.showerror("Error", "Selected ISO file does not exist")
+                return
+            
+            # Extract device path
+            device_path = target_disk.split(' ')[0]
+            
+            # Confirm installation
+            iso_name = Path(local_iso_path).name
+            if not messagebox.askyesno("Confirm Installation", 
+                                     f"Install {iso_name} to {device_path}?\nThis will ERASE all data on the device.\nContinue?"):
+                return
+            
+            # Start installation with local ISO
+            threading.Thread(target=self.install_local_iso, 
+                            args=(local_iso_path, device_path), daemon=True).start()
+            return
+        
+        # Standard online installation
         selection = self.results_tree.selection()
         if not selection:
-            messagebox.showwarning("Warning", "Please select an operating system first")
+            messagebox.showwarning("Warning", "Please select an operating system or browse for a local ISO file")
             return
         
         target_disk = self.disk_var.get()
@@ -465,6 +654,44 @@ class AIISOInstaller:
         # Start download in separate thread
         threading.Thread(target=self.download_and_install, 
                         args=(os_name, device_path), daemon=True).start()
+    
+    def install_local_iso(self, iso_path, device_path):
+        """Install local ISO file to USB device"""
+        try:
+            self.download_btn.configure(state='disabled')
+            self.cancel_btn.configure(state='normal')
+            
+            iso_name = Path(iso_path).name
+            self.status_var.set(f"Installing {iso_name} to {device_path}...")
+            self.progress_var.set(0)
+            
+            # Create bootable USB directly from local ISO
+            process = self.disk_manager.create_bootable_usb(iso_path, device_path)
+            
+            # Monitor dd progress (simplified)
+            while process.poll() is None:
+                time.sleep(1)
+                current_progress = self.progress_var.get()
+                if current_progress < 95:
+                    self.progress_var.set(current_progress + 2)
+            
+            if process.returncode == 0:
+                self.status_var.set(f"Successfully installed {iso_name} to {device_path}")
+                self.progress_var.set(100)
+                messagebox.showinfo("Success", 
+                                  f"Bootable USB created successfully!\n"
+                                  f"ISO: {iso_name}\n"
+                                  f"Device: {device_path}")
+            else:
+                stderr_output = process.stderr.read() if process.stderr else "Unknown error"
+                raise Exception(f"USB creation failed: {stderr_output}")
+                
+        except Exception as e:
+            self.status_var.set(f"Error: {e}")
+            messagebox.showerror("Error", f"Failed to install local ISO: {str(e)}")
+        finally:
+            self.download_btn.configure(state='normal')
+            self.cancel_btn.configure(state='disabled')
     
     def download_and_install(self, os_name, device_path):
         """Download ISO and create bootable USB"""
