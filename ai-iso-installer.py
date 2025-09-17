@@ -68,6 +68,13 @@ class OSDatabase:
                     "10": "https://www.microsoft.com/software-download/windows10"
                 },
                 "keywords": ["windows", "microsoft", "gaming", "office", "business"]
+            },
+            "ai-powerhouse": {
+                "name": "AI Powerhouse Garuda",
+                "versions": {
+                    "latest": "https://github.com/wlfogle/ai-powerhouse-setup"
+                },
+                "keywords": ["ai powerhouse", "development environment", "zfs", "cuda", "rust", "tauri", "react", "self-hosting", "virtualization", "ai development", "machine learning", "neural networks"]
             }
         }
 
@@ -97,6 +104,8 @@ class OSDatabase:
                 score += 5
             if any(word in query for word in ["beginner", "easy"]) and "ubuntu" in os_id:
                 score += 3
+            if any(word in query for word in ["ai", "development", "powerhouse", "zfs", "cuda", "rust", "ml", "neural"]) and "ai-powerhouse" in os_id:
+                score += 8
             
             if score > 0:
                 matches.append((os_id, data, score))
@@ -165,6 +174,76 @@ class DiskManager:
             
         except Exception as e:
             raise Exception(f"Failed to create bootable USB: {e}")
+
+class AIPowerhouseInstaller:
+    """Handle AI Powerhouse Setup installation"""
+    
+    @staticmethod
+    def clone_and_setup():
+        """Clone AI Powerhouse Setup repository and prepare installation"""
+        try:
+            install_dir = Path.home() / "Downloads" / "ai-powerhouse-setup"
+            
+            # Clone repository if not exists
+            if not install_dir.exists():
+                subprocess.run([
+                    'git', 'clone', 
+                    'https://github.com/wlfogle/ai-powerhouse-setup.git',
+                    str(install_dir)
+                ], check=True)
+            else:
+                # Update existing repository
+                subprocess.run(['git', 'pull'], cwd=str(install_dir), check=True)
+            
+            return str(install_dir)
+            
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"Failed to clone AI Powerhouse Setup: {e}")
+    
+    @staticmethod
+    def build_custom_iso(progress_callback=None):
+        """Build custom AI Powerhouse ISO"""
+        try:
+            install_dir = AIPowerhouseInstaller.clone_and_setup()
+            
+            # Execute the build script
+            build_script = Path(install_dir) / "installation" / "build-custom-iso.sh"
+            
+            if not build_script.exists():
+                raise Exception("Build script not found in AI Powerhouse Setup")
+            
+            # Make script executable
+            subprocess.run(['chmod', '+x', str(build_script)], check=True)
+            
+            # Run build script with sudo
+            process = subprocess.Popen(
+                ['sudo', str(build_script)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=str(install_dir)
+            )
+            
+            return process
+            
+        except Exception as e:
+            raise Exception(f"Failed to build AI Powerhouse ISO: {e}")
+    
+    @staticmethod
+    def get_built_iso_path():
+        """Get path to built AI Powerhouse ISO"""
+        # Common locations where the ISO might be built
+        possible_paths = [
+            Path.home() / "Downloads" / "ai-powerhouse-setup" / "build" / "ai-powerhouse-garuda.iso",
+            Path("/tmp") / "ai-powerhouse-garuda.iso",
+            Path("./build") / "ai-powerhouse-garuda.iso"
+        ]
+        
+        for path in possible_paths:
+            if path.exists():
+                return str(path)
+        
+        return None
 
 class DownloadManager:
     """Handle ISO downloads with progress tracking"""
@@ -240,7 +319,7 @@ class AIISOInstaller:
         
         # Example queries
         examples = ttk.Label(search_frame, 
-                           text="Examples: 'Ubuntu for beginners', 'Windows for gaming', 'Kali for pentesting', 'stable server Linux'",
+                           text="Examples: 'Ubuntu for beginners', 'Windows for gaming', 'Kali for pentesting', 'AI Powerhouse development'",
                            font=("Arial", 9), foreground="gray")
         examples.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(5, 0))
         
@@ -407,22 +486,57 @@ class AIISOInstaller:
             latest_version = list(os_data['versions'].keys())[0]
             download_url = os_data['versions'][latest_version]
             
-            # Create download directory
-            download_dir = Path.home() / "Downloads" / "ai-iso-installer"
-            download_dir.mkdir(exist_ok=True)
-            
-            iso_filename = f"{os_name.replace(' ', '_')}_{latest_version}.iso"
-            iso_path = download_dir / iso_filename
-            
-            self.status_var.set(f"Downloading {os_name} {latest_version}...")
-            
-            # Download ISO
-            self.download_manager = DownloadManager(self.update_progress)
-            success = self.download_manager.download_file(download_url, str(iso_path))
-            
-            if not success:
-                self.status_var.set("Download cancelled")
-                return
+            # Special handling for AI Powerhouse Setup
+            if os_name == "AI Powerhouse Garuda":
+                self.status_var.set("Setting up AI Powerhouse Build Environment...")
+                self.progress_var.set(10)
+                
+                # Clone and setup AI Powerhouse
+                install_dir = AIPowerhouseInstaller.clone_and_setup()
+                self.progress_var.set(30)
+                
+                self.status_var.set("Building Custom AI Powerhouse ISO...")
+                
+                # Build custom ISO
+                build_process = AIPowerhouseInstaller.build_custom_iso()
+                
+                # Monitor build progress
+                while build_process.poll() is None:
+                    time.sleep(2)
+                    current_progress = self.progress_var.get()
+                    if current_progress < 85:
+                        self.progress_var.set(current_progress + 1)
+                
+                if build_process.returncode != 0:
+                    stderr = build_process.stderr.read()
+                    raise Exception(f"AI Powerhouse ISO build failed: {stderr}")
+                
+                self.progress_var.set(90)
+                
+                # Find the built ISO
+                iso_path = AIPowerhouseInstaller.get_built_iso_path()
+                if not iso_path:
+                    raise Exception("Could not find built AI Powerhouse ISO")
+                
+                self.status_var.set("AI Powerhouse ISO built successfully!")
+                
+            else:
+                # Standard ISO download process
+                download_dir = Path.home() / "Downloads" / "ai-iso-installer"
+                download_dir.mkdir(exist_ok=True)
+                
+                iso_filename = f"{os_name.replace(' ', '_')}_{latest_version}.iso"
+                iso_path = download_dir / iso_filename
+                
+                self.status_var.set(f"Downloading {os_name} {latest_version}...")
+                
+                # Download ISO
+                self.download_manager = DownloadManager(self.update_progress)
+                success = self.download_manager.download_file(download_url, str(iso_path))
+                
+                if not success:
+                    self.status_var.set("Download cancelled")
+                    return
             
             self.status_var.set("Creating bootable USB...")
             self.progress_var.set(0)

@@ -46,6 +46,7 @@ cp "$SCRIPT_DIR/usb-rescue-optimizer.sh" /usr/local/bin/
 cp "$SCRIPT_DIR/usb-device-detector.sh" /usr/local/bin/
 cp "$SCRIPT_DIR/intelligent-optimizer.py" /opt/ai-rescue-tools/
 cp "$SCRIPT_DIR/neural-diagnostics.sh" /opt/ai-rescue-tools/
+cp "$SCRIPT_DIR/ai-powerhouse-integration.sh" /opt/ai-rescue-tools/
 cp "$SCRIPT_DIR/README.md" /opt/ai-rescue-tools/
 
 log "🔑 Setting permissions..."
@@ -53,6 +54,7 @@ chmod +x /usr/local/bin/usb-rescue-optimizer.sh
 chmod +x /usr/local/bin/usb-device-detector.sh
 chmod +x /opt/ai-rescue-tools/intelligent-optimizer.py
 chmod +x /opt/ai-rescue-tools/neural-diagnostics.sh
+chmod +x /opt/ai-rescue-tools/ai-powerhouse-integration.sh
 
 log "🎯 Enabling services..."
 systemctl daemon-reload
@@ -78,5 +80,7 @@ log "1. Reboot system to apply all optimizations"
 log "2. Check logs: /var/log/ai-rescue.log"
 log "3. Run diagnostics: sudo /opt/ai-rescue-tools/neural-diagnostics.sh"
 log "4. Monitor performance: /var/log/system-health-report.json"
+log "5. Setup AI Powerhouse integration: /opt/ai-rescue-tools/ai-powerhouse-integration.sh"
 log ""
 log "🚀 Your rescue USB is now AI-optimized for maximum performance!"
+log "🏠 Run AI Powerhouse integration for development environment setup!"
