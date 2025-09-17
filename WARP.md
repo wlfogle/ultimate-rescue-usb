@@ -205,3 +205,45 @@ cat /sys/block/sd*/queue/scheduler | grep -o '\[.*\]'
 # Monitor real-time performance
 watch -n 1 'cat /var/log/system-health-report.json | jq .health_metrics'
 ```
+## AI Powerhouse Setup Integration
+
+The Ultimate Rescue USB now integrates with AI Powerhouse Setup for enhanced development capabilities.
+
+### AI Powerhouse Features
+
+- **ZFS Root Filesystem** - Superior snapshots and rollback capabilities
+- **AI/ML Development** - CUDA acceleration, local LLMs, PyTorch
+- **Rust + Tauri + React** - Modern cross-platform app development
+- **Virtualization** - KVM/QEMU, Docker, Proxmox VM integration
+- **Self-Hosting** - Traefik, Portainer, monitoring stack
+- **Gaming Optimized** - Maintains Garuda's gaming performance
+
+### Integration Commands
+
+```bash
+# Launch integrated AI Powerhouse Rescue environment
+~/bin/ai-powerhouse-rescue
+
+# Build custom AI Powerhouse ISO with rescue tools
+cd ~/Downloads/ai-powerhouse-setup && sudo ./installation/build-custom-iso.sh
+
+# Install AI Powerhouse components
+cd ~/Downloads/ai-powerhouse-setup && ./ai-ml/ollama-integration.sh
+
+# Setup self-hosting services
+cd ~/Downloads/ai-powerhouse-setup/self-hosting && sudo ./install-native-media-stack.sh
+```
+
+### AI Powerhouse + Rescue USB Workflow
+
+1. **Search for "AI Powerhouse"** in the AI ISO installer
+2. **Build custom ISO** with both rescue tools and development environment
+3. **Deploy to USB** for portable AI development + rescue capabilities
+4. **Boot from USB** with full ZFS, CUDA, and rescue tools available
+
+### Configuration Files
+
+- `~/.config/ultimate-rescue-usb/ai-powerhouse-config.json` - Integration settings
+- `/var/log/ai-powerhouse-integration.log` - Integration logs
+- `/opt/ai-rescue-tools/` - AI rescue tools directory
+

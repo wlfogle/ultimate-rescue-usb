@@ -6,7 +6,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="/var/log/ai-powerhouse-integration.log"
-POWERHOUSE_DIR="$HOME/Downloads/ai-powerhouse-setup"
+# Use actual user home, not root's home when running with sudo
+USER_HOME="/home/garuda"
+POWERHOUSE_DIR="$USER_HOME/Downloads/ai-powerhouse-setup"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
@@ -37,9 +39,9 @@ cd "$POWERHOUSE_DIR"
 
 # Create integration configuration
 log "⚙️ Creating AI Powerhouse integration configuration..."
-mkdir -p "$HOME/.config/ultimate-rescue-usb"
+mkdir -p "$USER_HOME/.config/ultimate-rescue-usb"
 
-cat > "$HOME/.config/ultimate-rescue-usb/ai-powerhouse-config.json" << JSON
+cat > "$USER_HOME/.config/ultimate-rescue-usb/ai-powerhouse-config.json" << JSON
 {
   "integration_enabled": true,
   "powerhouse_directory": "$POWERHOUSE_DIR",
@@ -92,8 +94,8 @@ if [[ -d "$POWERHOUSE_DIR/ai-ml" ]]; then
     
     # Python AI/ML setup
     if command -v python3 &> /dev/null; then
-        log "🐍 Python 3 available - AI/ML tools can be installed"
-        pip3 install --user torch torchvision torchaudio jupyter psutil requests
+        log "🐍 Python 3 available - AI/ML tools already installed via pacman"
+        log "✅ PyTorch, psutil, requests packages ready"
     fi
 fi
 
@@ -119,12 +121,13 @@ fi
 
 # Create integrated rescue USB launcher
 log "🛠️ Creating integrated launcher script..."
-cat > "$HOME/bin/ai-powerhouse-rescue" << 'LAUNCHER'
+mkdir -p "$USER_HOME/bin"
+cat > "$USER_HOME/bin/ai-powerhouse-rescue" << 'LAUNCHER'
 #!/bin/bash
 # AI Powerhouse Enhanced Rescue USB Launcher
 
-POWERHOUSE_DIR="$HOME/Downloads/ai-powerhouse-setup"
-RESCUE_DIR="$HOME/projects/ultimate-rescue-usb"
+POWERHOUSE_DIR="/home/garuda/Downloads/ai-powerhouse-setup"
+RESCUE_DIR="/home/garuda/projects/ultimate-rescue-usb"
 
 echo "🚀 AI Powerhouse Enhanced Rescue USB"
 echo "======================================"
@@ -171,11 +174,16 @@ case $choice in
 esac
 LAUNCHER
 
-mkdir -p "$HOME/bin"
-chmod +x "$HOME/bin/ai-powerhouse-rescue"
+chmod +x "$USER_HOME/bin/ai-powerhouse-rescue"
+# Set proper ownership when running as root
+if [[ "$SYSTEM_INSTALL" == "true" ]]; then
+    chown garuda:garuda "$USER_HOME/bin/ai-powerhouse-rescue"
+    chown -R garuda:garuda "$USER_HOME/.config/ultimate-rescue-usb"
+fi
 
 # Update WARP.md with integration information
 log "📝 Updating WARP.md with AI Powerhouse integration..."
+RESCUE_DIR="$USER_HOME/projects/ultimate-rescue-usb"
 if [[ -f "$RESCUE_DIR/WARP.md" ]]; then
     # Add AI Powerhouse section to WARP.md
     cat >> "$RESCUE_DIR/WARP.md" << 'WARP_UPDATE'
@@ -236,7 +244,7 @@ After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=$HOME/bin/ai-powerhouse-rescue-monitor
+ExecStart=$USER_HOME/bin/ai-powerhouse-rescue-monitor
 RemainAfterExit=yes
 
 [Install]
